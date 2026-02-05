@@ -1,16 +1,17 @@
-// season.mjs
-// Moltopoly v1.7 — Season Mode Aggregator + Visual Upgrades
-// Adds:
-// 1) Click drilldown heatmap (cell click -> details + top rent events + match files)
-// 2) Rivalry cards with badges
-// 3) Trend sparks (last 10 games: wins, bankrupts, rent received)
-// 4) "Match of the Season" tiles (closest finish, longest game, most bailouts, most auctions, biggest rug)
+// src/season.mjs
+// Moltopoly v1.8 — Season Mode Aggregator + Visual Upgrades
+// Scans match_*.json files and generates season.json + season.html.
 //
 // Usage:
-//   node season.mjs
-//   node season.mjs moltopoly_out
-//   node season.mjs moltopoly_out --last 50
-//   node season.mjs moltopoly_out --minVersion 0.7
+//   node src/season.mjs
+//   node src/season.mjs out
+//   node src/season.mjs out --last 50
+//   node src/season.mjs out --minVersion 0.7
+//   node src/season.mjs out --out out          (write report somewhere else)
+//
+// Recommended layout (refactor-friendly):
+//   - match files live in: out/match_*.json
+//   - season outputs:      out/season.json + out/season.html
 
 import fs from "node:fs";
 import path from "node:path";
@@ -20,6 +21,9 @@ function argFlag(name, defVal = null) {
   if (i === -1) return defVal;
   const v = process.argv[i + 1];
   return v ?? defVal;
+}
+function hasFlag(name) {
+  return process.argv.includes(name);
 }
 function toInt(x, defVal) {
   const n = Number(x);
@@ -134,7 +138,6 @@ function computeMatchStats(match, fileBase) {
         const key = `${from}->${to}`;
         rentPairs.set(key, (rentPairs.get(key) ?? 0) + amt);
 
-        // keep event for drilldown
         rentEvents.push({
           from,
           to,
@@ -152,7 +155,7 @@ function computeMatchStats(match, fileBase) {
   const final = Array.isArray(match.final) ? match.final : [];
   const finalByName = new Map(final.map((x) => [x.name, x]));
 
-  // Compute finish margin (net_worth based)
+  // finish margin (net_worth based)
   let finish = null;
   const finalsNW = final
     .filter((x) => typeof x?.net_worth === "number")
@@ -215,7 +218,6 @@ function buildSeason(matches) {
   for (const m of matches) for (const p of m.players) playersSet.add(p.name);
   const players = [...playersSet].sort();
 
-  // aggregate leader stats
   const agg = {};
   for (const name of players) {
     agg[name] = {
@@ -239,33 +241,28 @@ function buildSeason(matches) {
       rentCountPaid: 0,
       rentCountRecv: 0,
 
-      // for trends
-      recent: [], // per match snapshot
+      recent: [],
     };
   }
 
   let globalBigRug = null;
 
-  const rentReceivedAll = {}; // name -> $
-  const rentPaidAll = {};     // name -> $
-  const rentPairAll = {};     // "from->to" -> $
+  const rentReceivedAll = {};
+  const rentPaidAll = {};
+  const rentPairAll = {};
 
-  // drilldown details: pair -> list of big rent events (from logs)
-  const rentPairEvents = {}; // "from->to" -> [{amount,t,square,file}...]
+  const rentPairEvents = {};
 
-  // Match of the Season candidates
   let matchLongest = null;
   let matchMostBailouts = null;
   let matchMostAuctions = null;
-  let matchClosest = null; // smallest margin
+  let matchClosest = null;
 
   for (const m of matches) {
-    // biggest rug
     if (m.biggestRug && (!globalBigRug || (m.biggestRug.amount ?? 0) > (globalBigRug.amount ?? 0))) {
       globalBigRug = { ...m.biggestRug, file: m.file };
     }
 
-    // season “match of season” tiles
     if (!matchLongest || (m.turns ?? 0) > (matchLongest.turns ?? 0)) {
       matchLongest = { file: m.file, turns: m.turns ?? 0, winner: m.winner ?? null };
     }
@@ -289,7 +286,6 @@ function buildSeason(matches) {
     const inMatch = new Set(m.players.map((p) => p.name));
     for (const p of m.players) agg[p.name].styles.add(p.style || "—");
 
-    // per-player aggregates
     for (const name of inMatch) {
       const a = agg[name];
       if (!a) continue;
@@ -310,7 +306,6 @@ function buildSeason(matches) {
         if (typeof fin.cash === "number") a.avgCash += fin.cash;
       }
 
-      // perks
       const ps = m.perkByPlayer.get(name);
       if (ps) {
         a.perkCount += ps.count;
@@ -322,7 +317,6 @@ function buildSeason(matches) {
         }
       }
 
-      // rent
       const rs = m.rentByPlayer.get(name);
       let rentPaid = 0, rentReceived = 0;
       if (rs) {
@@ -334,7 +328,6 @@ function buildSeason(matches) {
         rentReceived = rs.received ?? 0;
       }
 
-      // trends snapshot per match (in chronological order)
       a.recent.push({
         file: m.file,
         win: m.winner === name ? 1 : 0,
@@ -346,13 +339,11 @@ function buildSeason(matches) {
       });
     }
 
-    // global rent totals
     for (const [name, rs] of m.rentByPlayer.entries()) {
       rentPaidAll[name] = (rentPaidAll[name] ?? 0) + (rs.paid ?? 0);
       rentReceivedAll[name] = (rentReceivedAll[name] ?? 0) + (rs.received ?? 0);
     }
 
-    // pair totals + pair events
     for (const [k, amt] of (m.rentPairs?.entries?.() ?? [])) {
       rentPairAll[k] = (rentPairAll[k] ?? 0) + (amt ?? 0);
     }
@@ -381,7 +372,6 @@ function buildSeason(matches) {
     }
   }
 
-  // Heatmap matrix (rows payers, cols receivers)
   const matrix = {};
   for (const from of players) {
     matrix[from] = {};
@@ -412,13 +402,12 @@ function buildSeason(matches) {
 
   const heatmap = { players, matrix, maxCell, rowTotals, colTotals };
 
-  // Rivalry Engine (per player)
   const rivalries = {};
   for (const me of players) {
-    let nemesis = null;        // max paidTo
-    let favoriteVictim = null; // max receivedFrom
-    let danger = null;         // min netVs
-    let safe = null;           // max netVs
+    let nemesis = null;
+    let favoriteVictim = null;
+    let danger = null;
+    let safe = null;
 
     for (const other of players) {
       if (other === me) continue;
@@ -442,12 +431,10 @@ function buildSeason(matches) {
     };
   }
 
-  // Trend sparks: last 10 for each player
   const trends = {};
   for (const name of players) {
     const rec = agg[name].recent;
     const last10 = rec.slice(Math.max(0, rec.length - 10));
-    // normalize rentReceived spark within player last10
     const rrVals = last10.map(x => x.rentReceived ?? 0);
     const rrMax = Math.max(1, ...rrVals);
     trends[name] = {
@@ -461,7 +448,6 @@ function buildSeason(matches) {
     };
   }
 
-  // Drilldown: keep top 10 rent events per pair by amount
   const pairDetails = {};
   for (const [pair, list] of Object.entries(rentPairEvents)) {
     const top = list
@@ -471,7 +457,6 @@ function buildSeason(matches) {
     pairDetails[pair] = top;
   }
 
-  // finalize leaderboard rows
   const rows = Object.values(agg).map((p) => {
     const g = p.games || 1;
     const winRate = p.games ? p.wins / p.games : 0;
@@ -540,7 +525,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
   const players = heatmap?.players ?? [];
   const maxCell = heatmap?.maxCell ?? 0;
 
-  // Leaderboard table
   const lbRows = rows.map((r, idx) => `
     <tr>
       <td class="muted">${idx + 1}</td>
@@ -568,7 +552,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     </tr>
   `).join("");
 
-  // Heatmap
   const headCols = players.map(p => `<th class="right mono">${esc(p)}</th>`).join("");
   const heatRows = players.map((from) => {
     const cells = players.map((to) => {
@@ -646,7 +629,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
   `
     : "";
 
-  // Rivalry cards w/ badges + Trends sparks
   const rivalryCards = players.length
     ? `
     <div class="card" style="margin-top:12px;">
@@ -674,7 +656,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
           const dzTxt = dz ? `${esc(dz.name)} · net ${fmtMoney(dz.netVs)}` : "—";
           const szTxt = sz ? `${esc(sz.name)} · net ${fmtMoney(sz.netVs)}` : "—";
 
-          // Sparks: 10 tiny bars
           const winBars = t.map(x => `<span class="sparkbar ${x.win ? "on" : ""}" title="${esc(x.file)}"></span>`).join("");
           const bkBars = t.map(x => `<span class="sparkbar ${x.bankrupt ? "bad" : ""}" title="${esc(x.file)}"></span>`).join("");
           const rrBars = t.map(x => {
@@ -713,7 +694,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
   `
     : "";
 
-  // Match of Season tiles
   const mos = matchOfSeason ?? {};
   const mosTile = (title, body) => `
     <div class="tile">
@@ -742,7 +722,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     ? `${fmtMoney(rug.amount)} — ${esc(rug.from)} → ${esc(rug.to)}<br/>${esc(rug.square)} (t=${esc(rug.t)})<br/><span class="muted">file: ${esc(rug.file)}</span>`
     : "—";
 
-  // Embed drilldown data
   const drillJson = JSON.stringify({ pairDetails }, null, 0);
 
   return `<!doctype html>
@@ -773,13 +752,11 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     .kpi{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
     @media(max-width:980px){.kpi{grid-template-columns:1fr;}}
 
-    /* Match of season tiles */
     .tiles{display:grid;grid-template-columns:repeat(5, minmax(220px, 1fr));gap:12px;margin-top:12px;}
     @media(max-width:1400px){.tiles{grid-template-columns:repeat(2, minmax(220px, 1fr));}}
     @media(max-width:700px){.tiles{grid-template-columns:1fr;}}
     .tile{border:1px solid rgba(34,48,70,.8);background:#0f1624;border-radius:14px;padding:12px;}
 
-    /* Heatmap layout */
     .heatwrap{display:grid;grid-template-columns: 1.35fr 0.65fr;gap:12px;margin-top:10px;align-items:start;}
     @media(max-width:1100px){.heatwrap{grid-template-columns:1fr;}}
     .heatpanel{border:1px solid rgba(34,48,70,.8);background:#0f1624;border-radius:14px;padding:12px;min-height:220px;}
@@ -787,7 +764,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     .heatpanel .item:first-child{border-top:none;}
     .heatpanel .small{font-size:11px;color:var(--muted);}
 
-    /* Heatmap styling */
     table.heat th, table.heat td{border-bottom:1px solid rgba(34,48,70,.55);}
     table.heat thead th{position:sticky;top:0;background:rgba(18,25,38,.95);backdrop-filter: blur(6px);z-index:3;}
     table.heat tfoot th, table.heat tfoot td{border-top:1px solid rgba(34,48,70,.75);background:#0f1624;}
@@ -807,7 +783,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     td.cell.selected{outline:2px solid rgba(120,170,255,.65);}
     td.total{background:#0f1624;}
 
-    /* Rivalry cards */
     .rgrid{display:grid;grid-template-columns:repeat(4, minmax(240px, 1fr));gap:12px;margin-top:12px;}
     @media(max-width:1300px){.rgrid{grid-template-columns:repeat(2, minmax(240px, 1fr));}}
     @media(max-width:750px){.rgrid{grid-template-columns:1fr;}}
@@ -822,7 +797,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     .badge.safe{background:rgba(120,170,255,.12);}
     .rleft{display:flex;gap:8px;align-items:center;}
 
-    /* Sparks */
     .sparks{margin-top:10px;border-top:1px solid rgba(34,48,70,.35);padding-top:10px;}
     .sparkrow{display:flex;gap:10px;align-items:center;margin-top:6px;}
     .sparklabel{width:72px;font-size:11px;}
@@ -835,11 +809,12 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
 </head>
 <body>
 <header>
-  <h1>🦞 Moltopoly Season (v1.7)</h1>
+  <h1>🦞 Moltopoly Season (v1.8)</h1>
   <div class="sub">
     <span class="pill">matches: ${meta.matches}</span>
     <span class="pill">generated: ${esc(meta.generated_at)}</span>
-    <span class="pill">folder: ${esc(meta.folder)}</span>
+    <span class="pill">read: ${esc(meta.read_folder)}</span>
+    <span class="pill">write: ${esc(meta.write_folder)}</span>
   </div>
 </header>
 
@@ -874,9 +849,9 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     <div class="card">
       <div class="muted">How to update</div>
       <div style="margin-top:8px" class="mono">
-        Run: <b>node season.mjs</b><br/>
-        It scans: <span class="muted">moltopoly_out/match_*.json</span><br/>
-        Outputs: <span class="muted">season.json + season.html</span>
+        Run: <b>node src/season.mjs</b><br/>
+        It scans: <span class="muted">out/match_*.json</span><br/>
+        Outputs: <span class="muted">out/season.json + out/season.html</span>
       </div>
     </div>
   </div>
@@ -922,10 +897,8 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
 </div>
 
 <script>
-  // embedded drilldown data
   window.SEASON_DRILL = ${drillJson};
 
-  const panel = document.getElementById("heatpanel");
   const titleEl = document.getElementById("heatpanelTitle");
   const subEl = document.getElementById("heatpanelSub");
   const listEl = document.getElementById("heatpanelList");
@@ -970,7 +943,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
     td.addEventListener("click", () => {
       if (td.classList.contains("self")) return;
 
-      // toggle off if same cell clicked
       if (selected === td) {
         td.classList.remove("selected");
         selected = null;
@@ -978,7 +950,6 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
         return;
       }
 
-      // clear previous selection
       if (selected) selected.classList.remove("selected");
       selected = td;
       td.classList.add("selected");
@@ -997,30 +968,28 @@ function seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup,
 </html>`;
 }
 
-function main() {
-  const OUT_DIR = process.argv[2] && !process.argv[2].startsWith("--") ? process.argv[2] : "moltopoly_out";
-  const LAST_N = toInt(argFlag("--last", "0"), 0);
-  const MIN_VERSION = argFlag("--minVersion", "0") || "0";
-
-  const filesAll = listMatchFiles(OUT_DIR);
+export function runSeasonAggregate({
+  readDir = "out",
+  writeDir = readDir,
+  lastN = 0,
+  minVersion = 0,
+} = {}) {
+  const filesAll = listMatchFiles(readDir);
   if (!filesAll.length) {
-    console.log(`No match files found in ${OUT_DIR}/ (expected match_*.json)`);
-    process.exit(1);
+    throw new Error(`No match files found in ${readDir}/ (expected match_*.json)`);
   }
 
-  const files = LAST_N > 0 ? filesAll.slice(Math.max(0, filesAll.length - LAST_N)) : filesAll;
+  const files = lastN > 0 ? filesAll.slice(Math.max(0, filesAll.length - lastN)) : filesAll;
 
-  const minV = toNumVersion(MIN_VERSION);
   const matches = [];
-
   for (const fp of files) {
     try {
       const obj = readJson(fp);
       const v = toNumVersion(obj.version);
-      if (v < minV) continue;
+      if (v < minVersion) continue;
       matches.push(computeMatchStats(obj, path.basename(fp)));
     } catch (e) {
-      console.log(`Skip (bad JSON): ${fp} (${e.message})`);
+      // skip bad json
     }
   }
 
@@ -1032,11 +1001,12 @@ function main() {
   const meta = {
     generated_at: new Date().toISOString(),
     matches: matches.length,
-    minVersion: minV,
-    folder: OUT_DIR,
+    minVersion,
+    read_folder: readDir,
+    write_folder: writeDir,
   };
 
-  fs.mkdirSync(OUT_DIR, { recursive: true });
+  fs.mkdirSync(writeDir, { recursive: true });
 
   const season = {
     meta,
@@ -1052,19 +1022,47 @@ function main() {
     leaderboard: rows,
   };
 
-  const seasonJsonPath = path.join(OUT_DIR, "season.json");
+  const seasonJsonPath = path.join(writeDir, "season.json");
   fs.writeFileSync(seasonJsonPath, JSON.stringify(season, null, 2));
 
-  const seasonHtmlPath = path.join(OUT_DIR, "season.html");
+  const seasonHtmlPath = path.join(writeDir, "season.html");
   fs.writeFileSync(
     seasonHtmlPath,
     seasonHtml(meta, globalBigRug, rows, topBully, topVictim, worstMatchup, heatmap, rivalries, trends, pairDetails, matchOfSeason),
     "utf8"
   );
 
-  console.log(`✅ Wrote ${seasonJsonPath}`);
-  console.log(`✅ Wrote ${seasonHtmlPath}`);
-  console.log(`Open: ${seasonHtmlPath}`);
+  return { seasonJsonPath, seasonHtmlPath };
 }
 
-main();
+function main() {
+  // positional directory (readDir)
+  const readDir =
+    process.argv[2] && !process.argv[2].startsWith("--")
+      ? process.argv[2]
+      : "out";
+
+  const writeDir = argFlag("--out", readDir) || readDir;
+  const lastN = toInt(argFlag("--last", "0"), 0);
+  const minV = toNumVersion(argFlag("--minVersion", "0") || "0");
+
+  try {
+    const { seasonJsonPath, seasonHtmlPath } = runSeasonAggregate({
+      readDir,
+      writeDir,
+      lastN,
+      minVersion: minV,
+    });
+    console.log(`✅ Wrote ${seasonJsonPath}`);
+    console.log(`✅ Wrote ${seasonHtmlPath}`);
+    console.log(`Open: ${seasonHtmlPath}`);
+  } catch (e) {
+    console.log(String(e?.message || e));
+    process.exit(1);
+  }
+}
+
+// allow importing without auto-running
+if (import.meta.url === `file://${process.argv[1]}` || hasFlag("--run")) {
+  main();
+}
