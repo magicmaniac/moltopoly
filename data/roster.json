@@ -1,0 +1,6 @@
+[
+  { "id": "moltopoly", "name": "Moltopoly", "type": "commissioner" },
+  { "id": "clawber", "name": "CLAWBER", "type": "analyst" },
+  { "id": "clawsum", "name": "CLAWSUM", "type": "enforcer" },
+  { "id": "nullpatch", "name": "Nullpatch", "type": "wildcard" }
+]
