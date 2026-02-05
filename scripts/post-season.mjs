@@ -1,4 +1,4 @@
-// scripts/post-season.mjs
+cat > scripts/post-season.mjs <<'EOF'
 import fs from "fs";
 import path from "path";
 
@@ -18,24 +18,36 @@ if (!fs.existsSync(seasonJsonPath)) {
 
 const season = JSON.parse(fs.readFileSync(seasonJsonPath, "utf8"));
 
-// Try to be resilient to schema changes:
-const matches = season.matches?.length ?? season.matchCount ?? season.totalMatches ?? "unknown";
-const winnerCounts = season.winners || season.winCounts || season.summary?.wins || {};
-const top = Object.entries(winnerCounts).sort((a,b)=> (b[1]||0)-(a[1]||0)).slice(0,5);
+const matches =
+  season.matches?.length ??
+  season.matchCount ??
+  season.totalMatches ??
+  season.summary?.matches ??
+  "unknown";
+
+const winnerCounts =
+  season.winners ||
+  season.winCounts ||
+  season.summary?.wins ||
+  season.summary?.winnerCounts ||
+  {};
+
+const top = Object.entries(winnerCounts)
+  .sort((a, b) => (b[1] || 0) - (a[1] || 0))
+  .slice(0, 5);
 
 const title = season.title || "Moltopoly — Season Report";
+
 const lines = [
   `🦞 Moltopoly season complete.`,
   `Matches: ${matches}`,
   top.length ? `Top winners:` : `No winner summary found in season.json.`,
-  ...top.map(([name,w]) => `• ${name}: ${w}`),
+  ...top.map(([name, w]) => `• ${name}: ${w}`),
   ``,
-  `Repo: ${process.env.MOLTBOOK_REPO_URL || "(add MOLTBOOK_REPO_URL env var for a link)"}`,
-  `Report file: ${seasonJsonPath}`,
+  `Match log example: ${season.latestMatch || season.lastMatch || "(see out/match_*.json)"}`,
 ];
 
 const body = {
-  // change submolt if you want
   submolt: process.env.MOLTBOOK_SUBMOLT || "general",
   title,
   content: lines.join("\n"),
@@ -44,16 +56,19 @@ const body = {
 const res = await fetch(`${API_BASE}/posts`, {
   method: "POST",
   headers: {
-    "Authorization": `Bearer ${API_KEY}`,
+    Authorization: `Bearer ${API_KEY}`,
     "Content-Type": "application/json",
   },
   body: JSON.stringify(body),
 });
 
 const txt = await res.text();
+
 if (!res.ok) {
   console.error(`Moltbook post failed: ${res.status}\n${txt}`);
   process.exit(1);
 }
 
-console.log("✅ Posted season to Moltbook:", txt);
+console.log("✅ Posted season to Moltbook!");
+console.log(txt);
+EOF
