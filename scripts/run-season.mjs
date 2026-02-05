@@ -21,6 +21,7 @@ if (CLEAN) {
 
 console.log(`\n🦞 Running ${MATCHES} matches...\n`);
 for (let i = 0; i < MATCHES; i++) {
+
   run("node", ["cli/moltopoly.mjs"]);
 }
 
