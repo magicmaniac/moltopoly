@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moltopoly Replay</title>
+  <style>
+    :root { --bg:#0b0f14; --card:#121926; --muted:#8aa0b8; --text:#e8eef6; --line:#223046; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+           background: linear-gradient(180deg,#070a0f,#0b0f14 30%); color: var(--text); }
+    header { padding: 16px 18px; border-bottom: 1px solid var(--line); position: sticky; top:0; background: rgba(11,15,20,.85); backdrop-filter: blur(8px); }
+    h1 { font-size: 16px; margin:0 0 6px 0; letter-spacing: .4px; }
+    .sub { color: var(--muted); font-size: 12px; display:flex; gap:12px; flex-wrap: wrap; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 16px 18px 36px; }
+    .row { display:grid; grid-template-columns: 1.2fr .8fr; gap: 14px; }
+    @media (max-width: 980px){ .row { grid-template-columns: 1fr; } }
+
+    .card { background: rgba(18,25,38,.9); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .card h2 { margin: 0 0 10px 0; font-size: 13px; letter-spacing: .3px; color: #cfe0f5; }
+    .controls { display:flex; gap:10px; align-items: center; flex-wrap: wrap; }
+    button { background:#1c2a42; color: var(--text); border: 1px solid #2b3f63; border-radius: 10px; padding: 8px 10px; cursor:pointer; }
+    button:hover { filter: brightness(1.08); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    input[type="range"] { width: 320px; }
+    .pill { padding: 5px 8px; border-radius: 999px; border:1px solid #2b3f63; background:#0f1624; color:#cfe0f5; font-size: 12px; }
+    .hint { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .drop {
+      border: 1px dashed #2b3f63; border-radius: 14px; padding: 12px; color: var(--muted);
+      display:flex; align-items:center; justify-content: space-between; gap: 10px;
+      background: rgba(10,14,20,.35);
+    }
+    .drop strong { color:#cfe0f5; }
+    table { width:100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 8px 8px; border-bottom: 1px solid rgba(34,48,70,.65); vertical-align: top; }
+    th { text-align:left; color:#cfe0f5; font-weight:600; letter-spacing:.2px; }
+    tr:last-child td { border-bottom: none; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .muted { color: var(--muted); }
+    .right { text-align:right; }
+    .good { color:#7dffb2; }
+    .bad { color:#ff8c8c; }
+    .tag { font-size: 11px; padding: 2px 6px; border-radius: 999px; border:1px solid #2b3f63; background:#0f1624; color:#cfe0f5; display:inline-block; }
+    .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 680px){ .grid2{ grid-template-columns: 1fr; } }
+    .small { font-size: 11px; color: var(--muted); }
+    .k { color:#cfe0f5; }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>🦞 Moltopoly Replay</h1>
+  <div class="sub">
+    <span class="pill">v0.7 — Web Replay</span>
+    <span class="pill">← / → to step turns</span>
+    <span class="pill">Space to play/pause</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <div class="drop" id="dropZone">
+      <div>
+        <div><strong>Load match JSON</strong> (exported from moltopoly)</div>
+        <div class="small">Tip: drag & drop your <span class="mono">match_*.json</span> here</div>
+      </div>
+      <div class="controls">
+        <input id="fileInput" type="file" accept=".json,application/json" />
+        <button id="loadSampleBtn" title="Loads nothing unless you paste JSON below">Paste JSON</button>
+      </div>
+    </div>
+
+    <div id="pasteBox" style="display:none; margin-top:10px;">
+      <div class="hint">Paste a match JSON object here, then click “Load Pasted”.</div>
+      <textarea id="pasteArea" style="width:100%; height:140px; margin-top:8px; border-radius:12px; border:1px solid var(--line); background:#0f1624; color:var(--text); padding:10px;"></textarea>
+      <div class="controls" style="margin-top:8px;">
+        <button id="loadPastedBtn">Load Pasted</button>
+        <button id="cancelPasteBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="height:14px;"></div>
+
+  <div class="row">
+    <div class="card">
+      <h2>Turn Controls</h2>
+      <div class="controls">
+        <button id="btnPrev">← Prev</button>
+        <button id="btnNext">Next →</button>
+        <button id="btnPlay">▶ Play</button>
+        <span class="pill" id="turnLabel">Turn: —</span>
+        <input id="turnSlider" type="range" min="0" max="0" value="0" step="1" />
+        <span class="pill" id="tCount">0 / 0</span>
+      </div>
+      <div class="hint" style="margin-top:10px;">
+        This replay re-simulates cash/ownership from the event log. Bankruptcy “transfers” are inferred from events where
+        properties move <span class="mono">from: PLAYER</span> <span class="mono">to: BANK</span> with <span class="mono">reason: "bankruptcy"</span>.
+      </div>
+
+      <div style="height:12px;"></div>
+
+      <div class="grid2">
+        <div class="card" style="padding:12px;">
+          <h2 style="margin-bottom:8px;">This Turn — Events</h2>
+          <table id="eventsTable">
+            <thead><tr><th style="width:110px;">Type</th><th>Details</th></tr></thead>
+            <tbody><tr><td class="muted" colspan="2">Load a match to begin.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card" style="padding:12px;">
+          <h2 style="margin-bottom:8px;">Players — State</h2>
+          <table id="playersTable">
+            <thead>
+              <tr>
+                <th>Player</th><th class="right">Cash</th><th class="right">Owned</th><th class="right">Alive</th>
+              </tr>
+            </thead>
+            <tbody><tr><td class="muted" colspan="4">—</td></tr></tbody>
+          </table>
+          <div class="small" style="margin-top:8px;">
+            Net worth is approximated as <span class="mono">cash + sum(property prices)</span> (no houses/hotels yet).
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ownership</h2>
+      <table id="ownTable">
+        <thead><tr><th>Square</th><th>Type</th><th class="right">Price</th><th>Owner</th></tr></thead>
+        <tbody><tr><td class="muted" colspan="4">—</td></tr></tbody>
+      </table>
+      <div class="hint" style="margin-top:10px;">
+        Tip: if you later add “transfers to another player on bankruptcy”, this table will instantly show it.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // -------- utilities --------
+  const $ = (id) => document.getElementById(id);
+
+  function fmt(n){
+    const x = Number(n);
+    if (!Number.isFinite(x)) return String(n ?? "");
+    const sign = x < 0 ? "-" : "";
+    const v = Math.abs(x);
+    return sign + "$" + v.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  function parseCardDelta(card){
+    // Examples: "Airdrop +130", "Gas -80", "Rug -150", "Pump +170", "Bonus +95"
+    if (!card || typeof card !== "string") return 0;
+    const m = card.match(/([+-]\s*\d+)/);
+    if (!m) return 0;
+    return Number(m[1].replace(/\s+/g,""));
+  }
+
+  function shallowClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+  // -------- replay state --------
+  let match = null;
+  let turns = [];         // grouped by t => { t, events: [...] }
+  let snapshots = new Map(); // t -> array cash snapshot entries (if present)
+  let timer = null;
+  let playing = false;
+
+  // computed history per turn index
+  let history = []; // history[i] => { cashByName, ownedByIndex, aliveByName, posByName }
+
+  function buildTurnsFromLog(log){
+    const map = new Map();
+    for (const e of log || []){
+      const t = Number(e.t ?? 0);
+      if (!map.has(t)) map.set(t, []);
+      map.get(t).push(e);
+    }
+    const list = [...map.entries()].sort((a,b)=>a[0]-b[0]).map(([t, events]) => ({ t, events }));
+    return list;
+  }
+
+  function buildBoardMap(match){
+    const board = new Map();
+    for (const o of (match.ownership || [])){
+      board.set(Number(o.index), { index:Number(o.index), square:o.square, type:o.type, price:Number(o.price) });
+    }
+    // also add any square from events that includes index + square + price
+    for (const e of (match.log || [])){
+      if (e && (e.type === "buy" || e.type === "rent" || e.type === "auction" || e.type === "skip" || e.type === "land_own")){
+        const idx = Number(e.index);
+        if (Number.isFinite(idx) && !board.has(idx)){
+          board.set(idx, { index: idx, square: e.square || ("#" + idx), type: "PROP", price: Number(e.price || 0) });
+        }
+      }
+    }
+    return board;
+  }
+
+  function initState(match){
+    const names = (match.players || []).map(p => p.name);
+    const cashByName = {};
+    const posByName = {};
+    const aliveByName = {};
+    for (const n of names){
+      cashByName[n] = Number(match.config?.seedMoney ?? 1500);
+      posByName[n] = 0;
+      aliveByName[n] = true;
+    }
+    const ownedByIndex = {}; // index -> ownerName|null
+    // set initial ownership if provided (usually end-of-game; so we ignore for init)
+    return { cashByName, posByName, aliveByName, ownedByIndex };
+  }
+
+  function applyEvent(state, board, e){
+    // Mutates state
+    const cfg = match.config || {};
+    const cash = state.cashByName;
+    const pos  = state.posByName;
+    const alive = state.aliveByName;
+    const owned = state.ownedByIndex;
+
+    const t = e.type;
+
+    if (t === "move"){
+      if (e.who) pos[e.who] = Number(e.to ?? pos[e.who] ?? 0);
+      return;
+    }
+    if (t === "pass_go"){
+      if (e.who) cash[e.who] = (cash[e.who] ?? 0) + Number(e.amount ?? cfg.goMoney ?? 200);
+      return;
+    }
+    if (t === "tax"){
+      if (e.who) cash[e.who] = (cash[e.who] ?? 0) - Number(e.amount ?? 0);
+      return;
+    }
+    if (t === "upkeep"){
+      if (e.who) cash[e.who] = (cash[e.who] ?? 0) - Number(e.amount ?? 0);
+      return;
+    }
+    if (t === "bailout"){
+      if (e.who) cash[e.who] = (cash[e.who] ?? 0) + Number(e.cash ?? 0);
+      return;
+    }
+    if (t === "buy"){
+      if (!e.who) return;
+      cash[e.who] = (cash[e.who] ?? 0) - Number(e.price ?? 0);
+      if (Number.isFinite(Number(e.index))) owned[Number(e.index)] = e.who;
+      return;
+    }
+    if (t === "auction"){
+      // winner pays bid; square becomes owned by winner
+      if (!e.winner) return;
+      cash[e.winner] = (cash[e.winner] ?? 0) - Number(e.bid ?? 0);
+      if (Number.isFinite(Number(e.index))) owned[Number(e.index)] = e.winner;
+      return;
+    }
+    if (t === "rent"){
+      // from pays to
+      if (!e.from || !e.to) return;
+      cash[e.from] = (cash[e.from] ?? 0) - Number(e.amount ?? 0);
+      cash[e.to]   = (cash[e.to]   ?? 0) + Number(e.amount ?? 0);
+      return;
+    }
+    if (t === "chest" || t === "chance"){
+      const delta = parseCardDelta(e.card);
+      if (e.who && delta) cash[e.who] = (cash[e.who] ?? 0) + delta;
+      return;
+    }
+    if (t === "bankrupt"){
+      if (e.who) alive[e.who] = false;
+      return;
+    }
+    // Bankruptcy property "transfer" records use type: PROP/RAIL/UTIL with from/to/reason
+    if ((t === "PROP" || t === "RAIL" || t === "UTIL") && e.reason === "bankruptcy"){
+      const idx = Number(e.index);
+      if (Number.isFinite(idx)){
+        owned[idx] = null; // back to bank
+      }
+      return;
+    }
+    // Everything else: jail, gotojail, jail_wait, land, land_own, skip, end, start...
+  }
+
+  function computeHistory(){
+    const board = buildBoardMap(match);
+    const base = initState(match);
+
+    history = [];
+    let state = base;
+    for (let i = 0; i < turns.length; i++){
+      const snapshot = shallowClone(state);
+      // apply events for this turn
+      for (const e of turns[i].events){
+        applyEvent(state, board, e);
+      }
+      // store AFTER applying events so UI reflects end-of-turn
+      history[i] = {
+        cashByName: shallowClone(state.cashByName),
+        posByName: shallowClone(state.posByName),
+        aliveByName: shallowClone(state.aliveByName),
+        ownedByIndex: shallowClone(state.ownedByIndex),
+        board: board
+      };
+    }
+  }
+
+  // -------- UI rendering --------
+  function renderTurn(i){
+    if (!match || !turns.length) return;
+    i = Math.max(0, Math.min(i, turns.length - 1));
+
+    $("turnSlider").value = String(i);
+    $("tCount").textContent = `${i+1} / ${turns.length}`;
+    $("turnLabel").textContent = `Turn t=${turns[i].t}`;
+
+    $("btnPrev").disabled = i === 0;
+    $("btnNext").disabled = i === turns.length - 1;
+
+    const h = history[i];
+    const board = h.board;
+
+    // Events table
+    const evTbody = $("eventsTable").querySelector("tbody");
+    evTbody.innerHTML = "";
+    for (const e of turns[i].events){
+      const tr = document.createElement("tr");
+      const tdType = document.createElement("td");
+      tdType.innerHTML = `<span class="tag mono">${escapeHtml(e.type || "")}</span>`;
+      const tdDetails = document.createElement("td");
+      tdDetails.innerHTML = formatEventDetails(e);
+      tr.appendChild(tdType);
+      tr.appendChild(tdDetails);
+      evTbody.appendChild(tr);
+    }
+    if (!turns[i].events.length){
+      evTbody.innerHTML = `<tr><td class="muted" colspan="2">No events.</td></tr>`;
+    }
+
+    // Players table
+    const pTbody = $("playersTable").querySelector("tbody");
+    pTbody.innerHTML = "";
+
+    const names = (match.players || []).map(p => p.name);
+    const ownedCounts = {};
+    for (const idxStr of Object.keys(h.ownedByIndex)){
+      const owner = h.ownedByIndex[idxStr];
+      if (!owner) continue;
+      ownedCounts[owner] = (ownedCounts[owner] ?? 0) + 1;
+    }
+
+    // net worth estimate
+    const netWorth = {};
+    for (const n of names){
+      let nw = h.cashByName[n] ?? 0;
+      for (const idxStr of Object.keys(h.ownedByIndex)){
+        const owner = h.ownedByIndex[idxStr];
+        if (owner !== n) continue;
+        const idx = Number(idxStr);
+        const meta = board.get(idx);
+        nw += Number(meta?.price ?? 0);
+      }
+      netWorth[n] = nw;
+    }
+
+    // sort by net worth desc
+    const sorted = [...names].sort((a,b)=>(netWorth[b]??0)-(netWorth[a]??0));
+    for (const n of sorted){
+      const tr = document.createElement("tr");
+      const alive = !!h.aliveByName[n];
+      const cashVal = h.cashByName[n] ?? 0;
+      tr.innerHTML = `
+        <td><span class="mono">${escapeHtml(n)}</span> <span class="muted">(${escapeHtml(findStyle(n))})</span></td>
+        <td class="right ${cashVal>=0?'good':'bad'}">${fmt(cashVal)}</td>
+        <td class="right">${ownedCounts[n] ?? 0}</td>
+        <td class="right">${alive ? "✅" : "💀"}</td>
+      `;
+      pTbody.appendChild(tr);
+    }
+
+    // Ownership table (only known indices from board map)
+    const oTbody = $("ownTable").querySelector("tbody");
+    oTbody.innerHTML = "";
+
+    const boardList = [...board.values()].sort((a,b)=>a.index-b.index);
+    for (const sq of boardList){
+      const owner = h.ownedByIndex[sq.index] ?? null;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(sq.square || ("#" + sq.index))} <span class="muted mono">(#${sq.index})</span></td>
+        <td class="mono">${escapeHtml(sq.type || "")}</td>
+        <td class="right">${fmt(sq.price ?? 0)}</td>
+        <td class="mono">${owner ? escapeHtml(owner) : "<span class='muted'>BANK</span>"}</td>
+      `;
+      oTbody.appendChild(tr);
+    }
+  }
+
+  function findStyle(name){
+    const p = (match.players || []).find(x => x.name === name);
+    return p?.style || "—";
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function formatEventDetails(e){
+    const t = e.type;
+    const mono = (x) => `<span class="mono">${escapeHtml(x)}</span>`;
+    const money = (x) => `<span class="mono ${Number(x)>=0?'good':'bad'}">${fmt(x)}</span>`;
+
+    if (t === "start"){
+      return `order=${mono((e.order||[]).join(" → "))} seed=${money(e.seedMoney)} go=${money(e.goMoney)} maxTurns=${mono(e.maxTurns)}`;
+    }
+    if (t === "move"){
+      return `${mono(e.who)} ${mono(e.from)}→${mono(e.to)} (${mono(e.square)}), steps=${mono(e.steps)}`;
+    }
+    if (t === "buy"){
+      return `${mono(e.who)} bought ${mono(e.square)} ${mono("#"+e.index)} for ${money(e.price)}`;
+    }
+    if (t === "rent"){
+      return `${mono(e.from)} paid ${mono(e.to)} ${money(e.amount)} on ${mono(e.square)} ${mono("#"+e.index)}`;
+    }
+    if (t === "tax"){
+      return `${mono(e.who)} paid tax ${money(e.amount)} on ${mono(e.square)}`;
+    }
+    if (t === "upkeep"){
+      return `${mono(e.who)} upkeep ${money(-Number(e.amount||0))} (owned=${mono(e.owned)})`;
+    }
+    if (t === "pass_go"){
+      return `${mono(e.who)} collected ${money(e.amount)} (PASS GO)`;
+    }
+    if (t === "chance" || t === "chest"){
+      const d = parseCardDelta(e.card);
+      const extra = d ? ` → cash ${d>0?"+":""}${money(d)}` : "";
+      return `${mono(e.who)} drew ${mono(e.card)}${extra}`;
+    }
+    if (t === "auction"){
+      const bids = (e.bids||[]).map(b => `${b.name}:${b.bid}`).join(", ");
+      return `${mono(e.square)} ${mono("#"+e.index)} winner=${mono(e.winner)} bid=${money(e.bid)} <span class="muted">(bids: ${escapeHtml(bids)})</span>`;
+    }
+    if (t === "bankrupt"){
+      return `${mono(e.who)} BANKRUPT → ${mono(e.to || "BANK")}`;
+    }
+    if ((t === "PROP" || t === "RAIL" || t === "UTIL") && e.reason === "bankruptcy"){
+      return `${mono(e.square)} ${mono("#"+e.index)} transferred ${mono(e.from)} → ${mono(e.to)} <span class="muted">(reason: bankruptcy)</span>`;
+    }
+    if (t === "gotojail"){
+      return `${mono(e.who)} sent to JAIL`;
+    }
+    if (t === "jail"){
+      return `${mono(e.who)} in jail for ${mono(e.turns)} turns`;
+    }
+    if (t === "jail_wait"){
+      return `${mono(e.who)} jail wait (left=${mono(e.left)})`;
+    }
+    if (t === "bailout"){
+      return `${mono(e.who)} bailout +${money(e.cash)}`;
+    }
+    if (t === "snapshot"){
+      const rows = (e.alive||[]).map(a => `${a.name}:${a.cash}`).join(", ");
+      return `snapshot turn=${mono(e.turn)} <span class="muted">${escapeHtml(rows)}</span>`;
+    }
+    if (t === "end"){
+      return `winner=${mono(e.winner)}`;
+    }
+    return `<span class="muted mono">${escapeHtml(JSON.stringify(e))}</span>`;
+  }
+
+  // -------- loading --------
+  function loadMatch(obj){
+    match = obj;
+    turns = buildTurnsFromLog(match.log || []);
+    computeHistory();
+
+    $("turnSlider").max = String(Math.max(0, turns.length - 1));
+    $("turnSlider").value = "0";
+    renderTurn(0);
+  }
+
+  async function readFile(file){
+    const txt = await file.text();
+    return JSON.parse(txt);
+  }
+
+  // -------- controls --------
+  function setTurn(i){ renderTurn(i); }
+
+  function curIndex(){ return Number($("turnSlider").value || 0); }
+
+  function step(d){
+    const i = curIndex() + d;
+    setTurn(Math.max(0, Math.min(i, turns.length - 1)));
+  }
+
+  function setPlaying(on){
+    playing = on;
+    $("btnPlay").textContent = on ? "⏸ Pause" : "▶ Play";
+    if (timer) { clearInterval(timer); timer = null; }
+    if (on){
+      timer = setInterval(() => {
+        const i = curIndex();
+        if (i >= turns.length - 1) { setPlaying(false); return; }
+        setTurn(i + 1);
+      }, 650);
+    }
+  }
+
+  $("btnPrev").addEventListener("click", () => step(-1));
+  $("btnNext").addEventListener("click", () => step(+1));
+  $("turnSlider").addEventListener("input", () => renderTurn(curIndex()));
+  $("btnPlay").addEventListener("click", () => setPlaying(!playing));
+
+  // keyboard
+  window.addEventListener("keydown", (ev) => {
+    if (!match) return;
+    if (ev.key === "ArrowLeft") step(-1);
+    if (ev.key === "ArrowRight") step(+1);
+    if (ev.key === " ") { ev.preventDefault(); setPlaying(!playing); }
+  });
+
+  // file input
+  $("fileInput").addEventListener("change", async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    try { loadMatch(await readFile(f)); }
+    catch (err){ alert("Failed to load JSON: " + err.message); }
+  });
+
+  // drag drop
+  const drop = $("dropZone");
+  drop.addEventListener("dragover", (e)=>{ e.preventDefault(); drop.style.filter="brightness(1.15)"; });
+  drop.addEventListener("dragleave", ()=>{ drop.style.filter=""; });
+  drop.addEventListener("drop", async (e)=>{
+    e.preventDefault(); drop.style.filter="";
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    try { loadMatch(await readFile(f)); }
+    catch (err){ alert("Failed to load JSON: " + err.message); }
+  });
+
+  // paste JSON
+  $("loadSampleBtn").addEventListener("click", () => {
+    $("pasteBox").style.display = $("pasteBox").style.display === "none" ? "block" : "none";
+  });
+  $("cancelPasteBtn").addEventListener("click", () => {
+    $("pasteBox").style.display = "none";
+  });
+  $("loadPastedBtn").addEventListener("click", () => {
+    try {
+      const obj = JSON.parse($("pasteArea").value);
+      loadMatch(obj);
+      $("pasteBox").style.display = "none";
+    } catch (err){
+      alert("Invalid JSON: " + err.message);
+    }
+  });
+
+  // default disabled until load
+  $("btnPrev").disabled = true;
+  $("btnNext").disabled = true;
+  $("btnPlay").disabled = true;
+
+  // enable play once loaded (hook into loadMatch)
+  const _loadMatch = loadMatch;
+  loadMatch = (obj) => {
+    _loadMatch(obj);
+    $("btnPrev").disabled = false;
+    $("btnNext").disabled = false;
+    $("btnPlay").disabled = false;
+  };
+})();
+</script>
+</body>
+</html>
