@@ -1,0 +1,493 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Moltopoly Season</title>
+  <style>
+    :root{--bg:#0b0f14;--card:#121926;--muted:#8aa0b8;--text:#e8eef6;--line:#223046;}
+    body{margin:0;background:linear-gradient(180deg,#070a0f,#0b0f14 30%);color:var(--text);
+         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
+    header{padding:16px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(11,15,20,.85);backdrop-filter: blur(8px);z-index:5;}
+    h1{margin:0 0 6px 0;font-size:16px;letter-spacing:.4px;}
+    .sub{color:var(--muted);font-size:12px;display:flex;gap:10px;flex-wrap:wrap;}
+    .pill{padding:5px 8px;border-radius:999px;border:1px solid #2b3f63;background:#0f1624;color:#cfe0f5;font-size:12px;}
+    .wrap{max-width:1700px;margin:0 auto;padding:16px 18px 36px;}
+    .card{background:rgba(18,25,38,.9);border:1px solid var(--line);border-radius:14px;padding:14px;}
+    .scroll{overflow:auto;}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;}
+    th,td{padding:8px 8px;border-bottom:1px solid rgba(34,48,70,.65);vertical-align:top;white-space:nowrap;}
+    th{text-align:left;color:#cfe0f5;font-weight:600;}
+    tr:last-child td{border-bottom:none;}
+    .right{text-align:right;}
+    .muted{color:var(--muted);}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+
+    .kpi{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+    @media(max-width:980px){.kpi{grid-template-columns:1fr;}}
+
+    /* Match of season tiles */
+    .tiles{display:grid;grid-template-columns:repeat(5, minmax(220px, 1fr));gap:12px;margin-top:12px;}
+    @media(max-width:1400px){.tiles{grid-template-columns:repeat(2, minmax(220px, 1fr));}}
+    @media(max-width:700px){.tiles{grid-template-columns:1fr;}}
+    .tile{border:1px solid rgba(34,48,70,.8);background:#0f1624;border-radius:14px;padding:12px;}
+
+    /* Heatmap layout */
+    .heatwrap{display:grid;grid-template-columns: 1.35fr 0.65fr;gap:12px;margin-top:10px;align-items:start;}
+    @media(max-width:1100px){.heatwrap{grid-template-columns:1fr;}}
+    .heatpanel{border:1px solid rgba(34,48,70,.8);background:#0f1624;border-radius:14px;padding:12px;min-height:220px;}
+    .heatpanel .item{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(34,48,70,.35);}
+    .heatpanel .item:first-child{border-top:none;}
+    .heatpanel .small{font-size:11px;color:var(--muted);}
+
+    /* Heatmap styling */
+    table.heat th, table.heat td{border-bottom:1px solid rgba(34,48,70,.55);}
+    table.heat thead th{position:sticky;top:0;background:rgba(18,25,38,.95);backdrop-filter: blur(6px);z-index:3;}
+    table.heat tfoot th, table.heat tfoot td{border-top:1px solid rgba(34,48,70,.75);background:#0f1624;}
+    td.cell{
+      --a: 0;
+      background: rgba(255, 75, 75, var(--a));
+      border-left: 1px solid rgba(34,48,70,.35);
+      cursor:pointer;
+      transition: outline .12s ease, transform .06s ease;
+    }
+    td.cell:hover{outline:1px solid rgba(255,255,255,.25); transform: translateY(-1px);}
+    td.cell.self{
+      background: rgba(120, 170, 255, 0.10);
+      color: rgba(232,238,246,.45);
+      cursor:default;
+    }
+    td.cell.selected{outline:2px solid rgba(120,170,255,.65);}
+    td.total{background:#0f1624;}
+
+    /* Rivalry cards */
+    .rgrid{display:grid;grid-template-columns:repeat(4, minmax(240px, 1fr));gap:12px;margin-top:12px;}
+    @media(max-width:1300px){.rgrid{grid-template-columns:repeat(2, minmax(240px, 1fr));}}
+    @media(max-width:750px){.rgrid{grid-template-columns:1fr;}}
+    .rcard{border:1px solid rgba(34,48,70,.8);background:#0f1624;border-radius:14px;padding:12px;}
+    .rtitle{font-size:13px;margin-bottom:8px;}
+    .rline{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(34,48,70,.35);align-items:center;}
+    .rline:first-of-type{border-top:none;}
+    .badge{font-size:11px;border:1px solid rgba(255,255,255,.10);padding:2px 8px;border-radius:999px;}
+    .badge.nemesis{background:rgba(255,75,75,.12);}
+    .badge.victim{background:rgba(110,255,170,.10);}
+    .badge.danger{background:rgba(255,180,80,.12);}
+    .badge.safe{background:rgba(120,170,255,.12);}
+    .rleft{display:flex;gap:8px;align-items:center;}
+
+    /* Sparks */
+    .sparks{margin-top:10px;border-top:1px solid rgba(34,48,70,.35);padding-top:10px;}
+    .sparkrow{display:flex;gap:10px;align-items:center;margin-top:6px;}
+    .sparklabel{width:72px;font-size:11px;}
+    .spark{display:flex;gap:4px;align-items:flex-end;}
+    .sparkbar{width:10px;height:10px;border-radius:3px;background:rgba(232,238,246,.12);border:1px solid rgba(255,255,255,.06);}
+    .sparkbar.on{background:rgba(110,255,170,.22);}
+    .sparkbar.bad{background:rgba(255,75,75,.22);}
+    .sparkbar.rr{height: var(--h, 8px); background:rgba(120,170,255,.22);}
+  </style>
+</head>
+<body>
+<header>
+  <h1>🦞 Moltopoly Season (v1.7)</h1>
+  <div class="sub">
+    <span class="pill">matches: 4</span>
+    <span class="pill">generated: 2026-02-05T20:04:28.108Z</span>
+    <span class="pill">folder: out</span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="tiles">
+    
+    <div class="tile">
+      <div class="muted">Biggest rug</div>
+      <div class="mono" style="margin-top:8px;">$56 — BOT2 → YOURNAME<br/>Boardwalk (t=54)<br/><span class="muted">file: match_1770321358668.json</span></div>
+    </div>
+  
+    
+    <div class="tile">
+      <div class="muted">Closest finish</div>
+      <div class="mono" style="margin-top:8px;">BOT2 beat YOURNAME by $1,879<br/><span class="muted">file: match_1770321358668.json</span></div>
+    </div>
+  
+    
+    <div class="tile">
+      <div class="muted">Longest game</div>
+      <div class="mono" style="margin-top:8px;">BOT2 won in 57 turns<br/><span class="muted">file: match_1770321358668.json</span></div>
+    </div>
+  
+    
+    <div class="tile">
+      <div class="muted">Most bailouts</div>
+      <div class="mono" style="margin-top:8px;">2 bailouts<br/><span class="muted">winner: BOT2 · file: match_1770321358668.json</span></div>
+    </div>
+  
+    
+    <div class="tile">
+      <div class="muted">Most auctions</div>
+      <div class="mono" style="margin-top:8px;">7 auctions<br/><span class="muted">winner: YOURNAME · file: match_1770321859588.json</span></div>
+    </div>
+  
+  </div>
+
+  <div class="kpi">
+    <div class="card">
+      <div class="muted">Bully / Victim</div>
+      <div style="margin-top:8px" class="mono">
+        <div><span class="muted">Top bully (rent received):</span><br/>
+          BOT2 — $312
+        </div>
+        <br/>
+        <div><span class="muted">Top victim (rent paid):</span><br/>
+          YOURNAME — $312
+        </div>
+        <br/>
+        <div><span class="muted">Worst matchup:</span><br/>
+          YOURNAME → BOT2 — $312
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted">How to update</div>
+      <div style="margin-top:8px" class="mono">
+        Run: <b>node season.mjs</b><br/>
+        It scans: <span class="muted">out/match_*.json</span><br/>
+        Outputs: <span class="muted">season.json + season.html</span>
+      </div>
+    </div>
+  </div>
+
+  
+    <div class="card scroll" style="margin-top:12px;">
+      <div class="muted">Heatmap — Rent paid (rows) → Rent received (cols)</div>
+      <div class="heatwrap">
+        <div class="heattable">
+          <table class="heat">
+            <thead>
+              <tr>
+                <th></th>
+                <th class="right mono">BOT2</th><th class="right mono">YOURNAME</th>
+                <th class="right mono">ROW Σ</th>
+              </tr>
+            </thead>
+            <tbody>
+              
+      <tr>
+        <th class="mono">BOT2</th>
+        <td class="cell self right mono heatcell"
+                data-from="BOT2"
+                data-to="BOT2"
+                data-key="BOT2-&gt;BOT2"
+                data-val="0"
+                title="BOT2 → BOT2: $0"
+                style="--a:0.000"></td><td class="cell right mono heatcell"
+                data-from="BOT2"
+                data-to="YOURNAME"
+                data-key="BOT2-&gt;YOURNAME"
+                data-val="270"
+                title="BOT2 → YOURNAME: $270"
+                style="--a:0.910">$270</td>
+        <td class="right mono total">$270</td>
+      </tr>
+    
+      <tr>
+        <th class="mono">YOURNAME</th>
+        <td class="cell right mono heatcell"
+                data-from="YOURNAME"
+                data-to="BOT2"
+                data-key="YOURNAME-&gt;BOT2"
+                data-val="312"
+                title="YOURNAME → BOT2: $312"
+                style="--a:1.000">$312</td><td class="cell self right mono heatcell"
+                data-from="YOURNAME"
+                data-to="YOURNAME"
+                data-key="YOURNAME-&gt;YOURNAME"
+                data-val="0"
+                title="YOURNAME → YOURNAME: $0"
+                style="--a:0.000"></td>
+        <td class="right mono total">$312</td>
+      </tr>
+    
+            </tbody>
+            <tfoot>
+              <tr>
+                <th class="mono">COL Σ</th>
+                <td class="right mono total">$312</td><td class="right mono total">$270</td>
+                <td class="right mono total">$582</td>
+              </tr>
+            </tfoot>
+          </table>
+          <div class="muted" style="margin-top:8px;font-size:12px;">
+            Tip: click a cell to lock it and see drilldown. Click again to clear.
+          </div>
+        </div>
+
+        <div class="heatpanel" id="heatpanel">
+          <div class="muted">Drilldown</div>
+          <div class="mono" id="heatpanelTitle" style="margin-top:8px;">Click a heatmap cell</div>
+          <div class="muted" id="heatpanelSub" style="margin-top:8px;font-size:12px;"></div>
+          <div id="heatpanelList" style="margin-top:10px;"></div>
+        </div>
+      </div>
+    </div>
+  
+  
+    <div class="card" style="margin-top:12px;">
+      <div class="muted">Rivalry Engine + Trends (last 10)</div>
+      <div class="rgrid">
+        
+            <div class="rcard">
+              <div class="rtitle mono">BOT2</div>
+
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge nemesis">Nemesis</span></div>
+              <div class="rright mono">YOURNAME · $270 paid</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge victim">Favorite victim</span></div>
+              <div class="rright mono">YOURNAME · $312 received</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge danger">Danger zone</span></div>
+              <div class="rright mono">YOURNAME · net $42</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge safe">Safe zone</span></div>
+              <div class="rright mono">YOURNAME · net $42</div>
+            </div>
+          
+
+              <div class="sparks">
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Wins</div>
+                  <div class="spark"><span class="sparkbar on" title="match_1770321358668.json"></span><span class="sparkbar " title="match_1770321859588.json"></span></div>
+                </div>
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Bankrupts</div>
+                  <div class="spark"><span class="sparkbar " title="match_1770321358668.json"></span><span class="sparkbar bad" title="match_1770321859588.json"></span></div>
+                </div>
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Rent+</div>
+                  <div class="spark"><span class="sparkbar rr" style="--h:10.0px" title="match_1770321358668.json · rent+ $94"></span><span class="sparkbar rr" style="--h:18.0px" title="match_1770321859588.json · rent+ $218"></span></div>
+                </div>
+              </div>
+            </div>
+          
+            <div class="rcard">
+              <div class="rtitle mono">YOURNAME</div>
+
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge nemesis">Nemesis</span></div>
+              <div class="rright mono">BOT2 · $312 paid</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge victim">Favorite victim</span></div>
+              <div class="rright mono">BOT2 · $270 received</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge danger">Danger zone</span></div>
+              <div class="rright mono">BOT2 · net -$42</div>
+            </div>
+          
+              
+            <div class="rline">
+              <div class="rleft"><span class="badge safe">Safe zone</span></div>
+              <div class="rright mono">BOT2 · net -$42</div>
+            </div>
+          
+
+              <div class="sparks">
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Wins</div>
+                  <div class="spark"><span class="sparkbar on" title="match_1770320543559.json"></span><span class="sparkbar on" title="match_1770321120856.json"></span><span class="sparkbar " title="match_1770321358668.json"></span><span class="sparkbar on" title="match_1770321859588.json"></span></div>
+                </div>
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Bankrupts</div>
+                  <div class="spark"><span class="sparkbar " title="match_1770320543559.json"></span><span class="sparkbar " title="match_1770321120856.json"></span><span class="sparkbar bad" title="match_1770321358668.json"></span><span class="sparkbar " title="match_1770321859588.json"></span></div>
+                </div>
+                <div class="sparkrow">
+                  <div class="sparklabel muted">Rent+</div>
+                  <div class="spark"><span class="sparkbar rr" style="--h:4.0px" title="match_1770320543559.json · rent+ $0"></span><span class="sparkbar rr" style="--h:4.0px" title="match_1770321120856.json · rent+ $0"></span><span class="sparkbar rr" style="--h:18.0px" title="match_1770321358668.json · rent+ $182"></span><span class="sparkbar rr" style="--h:10.8px" title="match_1770321859588.json · rent+ $88"></span></div>
+                </div>
+              </div>
+            </div>
+          
+      </div>
+    </div>
+  
+
+  <div class="card scroll" style="margin-top:12px;">
+    <div class="muted">Leaderboard</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Player</th>
+          <th class="right">Games</th>
+          <th class="right">Wins</th>
+          <th class="right">Win%</th>
+
+          <th class="right">Avg Turns</th>
+          <th class="right">Avg Auctions</th>
+          <th class="right">Avg Bailouts</th>
+
+          <th class="right">Avg Net</th>
+          <th class="right">Avg Cash</th>
+          <th class="right">Bankrupts</th>
+
+          <th class="right">Perk#</th>
+          <th class="right">Perk$</th>
+          <th class="right">Rent+</th>
+          <th class="right">Rent-</th>
+          <th class="right">RentNet</th>
+
+          <th>Perks (breakdown)</th>
+          <th>Styles</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+    <tr>
+      <td class="muted">1</td>
+      <td><span class="mono">YOURNAME</span></td>
+      <td class="right">4</td>
+      <td class="right">3</td>
+      <td class="right">75.0%</td>
+
+      <td class="right">25.3</td>
+      <td class="right">3.3</td>
+      <td class="right">0.8</td>
+
+      <td class="right">$1,361</td>
+      <td class="right">$886</td>
+      <td class="right">1</td>
+
+      <td class="right">0</td>
+      <td class="right">$0</td>
+      <td class="right">$270</td>
+      <td class="right">$312</td>
+      <td class="right">-$42</td>
+
+      <td class="muted"></td>
+      <td class="muted">SAFE</td>
+    </tr>
+  
+    <tr>
+      <td class="muted">2</td>
+      <td><span class="mono">BOT2</span></td>
+      <td class="right">2</td>
+      <td class="right">1</td>
+      <td class="right">50.0%</td>
+
+      <td class="right">50.5</td>
+      <td class="right">6.5</td>
+      <td class="right">1.5</td>
+
+      <td class="right">$911</td>
+      <td class="right">$161</td>
+      <td class="right">1</td>
+
+      <td class="right">0</td>
+      <td class="right">$0</td>
+      <td class="right">$312</td>
+      <td class="right">$270</td>
+      <td class="right">$42</td>
+
+      <td class="muted"></td>
+      <td class="muted">SAFE</td>
+    </tr>
+  
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  // embedded drilldown data
+  window.SEASON_DRILL = {"pairDetails":{"BOT2->YOURNAME":[{"amount":56,"t":54,"square":"Boardwalk","file":"match_1770321358668.json"},{"amount":30,"t":32,"square":"Marvin","file":"match_1770321859588.json"},{"amount":30,"t":30,"square":"Marvin","file":"match_1770321358668.json"},{"amount":27,"t":52,"square":"Penn Rail","file":"match_1770321358668.json"},{"amount":27,"t":24,"square":"Atlantic","file":"match_1770321358668.json"},{"amount":27,"t":5,"square":"Marvin","file":"match_1770321859588.json"},{"amount":24,"t":23,"square":"Penn Rail","file":"match_1770321358668.json"},{"amount":16,"t":36,"square":"St Charles","file":"match_1770321859588.json"},{"amount":15,"t":13,"square":"St Charles","file":"match_1770321859588.json"},{"amount":10,"t":45,"square":"Oriental","file":"match_1770321358668.json"}],"YOURNAME->BOT2":[{"amount":33,"t":38,"square":"NC Ave","file":"match_1770321859588.json"},{"amount":32,"t":35,"square":"NC Ave","file":"match_1770321358668.json"},{"amount":26,"t":33,"square":"Illinois","file":"match_1770321859588.json"},{"amount":25,"t":51,"square":"Indiana","file":"match_1770321358668.json"},{"amount":25,"t":21,"square":"Illinois","file":"match_1770321859588.json"},{"amount":24,"t":32,"square":"Electric","file":"match_1770321859588.json"},{"amount":24,"t":14,"square":"Illinois","file":"match_1770321859588.json"},{"amount":24,"t":9,"square":"Illinois","file":"match_1770321859588.json"},{"amount":23,"t":27,"square":"Electric","file":"match_1770321859588.json"},{"amount":20,"t":40,"square":"Tennessee","file":"match_1770321358668.json"}]}};
+
+  const panel = document.getElementById("heatpanel");
+  const titleEl = document.getElementById("heatpanelTitle");
+  const subEl = document.getElementById("heatpanelSub");
+  const listEl = document.getElementById("heatpanelList");
+
+  function clearPanel() {
+    titleEl.textContent = "Click a heatmap cell";
+    subEl.textContent = "";
+    listEl.innerHTML = "";
+  }
+
+  function renderPanel(from, to, total) {
+    const key = from + "->" + to;
+    const items = (window.SEASON_DRILL?.pairDetails?.[key] || []).slice(0, 10);
+
+    titleEl.textContent = from + " → " + to;
+    subEl.textContent = "Total rent paid: " + total;
+
+    if (!items.length) {
+      listEl.innerHTML = '<div class="muted">No rent events logged for this pair.</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map((x) => {
+      const sq = x.square ? (" · " + x.square) : "";
+      const t = (x.t != null) ? ("t=" + x.t) : "t=?";
+      const file = x.file || "";
+      return `
+        <div class="item">
+          <div>
+            <div class="mono">${x.amount.toLocaleString()}$</div>
+            <div class="small">${t}${sq}</div>
+          </div>
+          <div class="small mono">${file}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  let selected = null;
+
+  document.querySelectorAll(".heatcell").forEach((td) => {
+    td.addEventListener("click", () => {
+      if (td.classList.contains("self")) return;
+
+      // toggle off if same cell clicked
+      if (selected === td) {
+        td.classList.remove("selected");
+        selected = null;
+        clearPanel();
+        return;
+      }
+
+      // clear previous selection
+      if (selected) selected.classList.remove("selected");
+      selected = td;
+      td.classList.add("selected");
+
+      const from = td.dataset.from;
+      const to = td.dataset.to;
+      const v = Number(td.dataset.val || 0);
+      renderPanel(from, to, "$" + v.toLocaleString());
+    });
+  });
+
+  clearPanel();
+</script>
+
+</body>
+</html>

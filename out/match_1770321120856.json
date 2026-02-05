@@ -1,0 +1,245 @@
+{
+  "version": "0.8",
+  "created_at": "2026-02-05T19:52:00.856Z",
+  "config": {
+    "seedMoney": 1650,
+    "goMoney": 225,
+    "maxTurns": 260,
+    "jailTurns": 2,
+    "bailoutOnce": true,
+    "bailoutCash": 300,
+    "logMode": "events",
+    "snapshotEvery": 10,
+    "upkeepRate": 0.03,
+    "upkeepMinPerSquare": 2,
+    "whalePropertyCap": 10,
+    "whaleExtraFee": 50
+  },
+  "players": [
+    {
+      "name": "YOURNAME",
+      "style": "SAFE",
+      "risk": 0.95
+    }
+  ],
+  "turns_played": 0,
+  "winner": "YOURNAME",
+  "final": [
+    {
+      "name": "YOURNAME",
+      "alive": true,
+      "cash": 1650,
+      "net_worth": 1650,
+      "owned": 0,
+      "used_bailout": false
+    }
+  ],
+  "ownership": [
+    {
+      "index": 1,
+      "square": "Mediterranean",
+      "type": "PROP",
+      "price": 60,
+      "owner": null
+    },
+    {
+      "index": 3,
+      "square": "Baltic",
+      "type": "PROP",
+      "price": 60,
+      "owner": null
+    },
+    {
+      "index": 5,
+      "square": "Reading Rail",
+      "type": "RAIL",
+      "price": 200,
+      "owner": null
+    },
+    {
+      "index": 6,
+      "square": "Oriental",
+      "type": "PROP",
+      "price": 100,
+      "owner": null
+    },
+    {
+      "index": 8,
+      "square": "Vermont",
+      "type": "PROP",
+      "price": 100,
+      "owner": null
+    },
+    {
+      "index": 9,
+      "square": "Connecticut",
+      "type": "PROP",
+      "price": 120,
+      "owner": null
+    },
+    {
+      "index": 11,
+      "square": "St Charles",
+      "type": "PROP",
+      "price": 140,
+      "owner": null
+    },
+    {
+      "index": 12,
+      "square": "Electric",
+      "type": "UTIL",
+      "price": 150,
+      "owner": null
+    },
+    {
+      "index": 13,
+      "square": "States",
+      "type": "PROP",
+      "price": 140,
+      "owner": null
+    },
+    {
+      "index": 14,
+      "square": "Virginia",
+      "type": "PROP",
+      "price": 160,
+      "owner": null
+    },
+    {
+      "index": 15,
+      "square": "Penn Rail",
+      "type": "RAIL",
+      "price": 200,
+      "owner": null
+    },
+    {
+      "index": 16,
+      "square": "St James",
+      "type": "PROP",
+      "price": 180,
+      "owner": null
+    },
+    {
+      "index": 18,
+      "square": "Tennessee",
+      "type": "PROP",
+      "price": 180,
+      "owner": null
+    },
+    {
+      "index": 19,
+      "square": "New York",
+      "type": "PROP",
+      "price": 200,
+      "owner": null
+    },
+    {
+      "index": 21,
+      "square": "Kentucky",
+      "type": "PROP",
+      "price": 220,
+      "owner": null
+    },
+    {
+      "index": 23,
+      "square": "Indiana",
+      "type": "PROP",
+      "price": 220,
+      "owner": null
+    },
+    {
+      "index": 24,
+      "square": "Illinois",
+      "type": "PROP",
+      "price": 240,
+      "owner": null
+    },
+    {
+      "index": 26,
+      "square": "Atlantic",
+      "type": "PROP",
+      "price": 260,
+      "owner": null
+    },
+    {
+      "index": 27,
+      "square": "Water",
+      "type": "UTIL",
+      "price": 150,
+      "owner": null
+    },
+    {
+      "index": 28,
+      "square": "Ventnor",
+      "type": "PROP",
+      "price": 260,
+      "owner": null
+    },
+    {
+      "index": 29,
+      "square": "Marvin",
+      "type": "PROP",
+      "price": 280,
+      "owner": null
+    },
+    {
+      "index": 30,
+      "square": "B&O Rail",
+      "type": "RAIL",
+      "price": 200,
+      "owner": null
+    },
+    {
+      "index": 31,
+      "square": "Pacific",
+      "type": "PROP",
+      "price": 300,
+      "owner": null
+    },
+    {
+      "index": 33,
+      "square": "NC Ave",
+      "type": "PROP",
+      "price": 300,
+      "owner": null
+    },
+    {
+      "index": 34,
+      "square": "Penn Ave",
+      "type": "PROP",
+      "price": 320,
+      "owner": null
+    },
+    {
+      "index": 36,
+      "square": "Park Place",
+      "type": "PROP",
+      "price": 350,
+      "owner": null
+    },
+    {
+      "index": 38,
+      "square": "Boardwalk",
+      "type": "PROP",
+      "price": 400,
+      "owner": null
+    }
+  ],
+  "log": [
+    {
+      "t": 0,
+      "type": "start",
+      "order": [
+        "YOURNAME"
+      ],
+      "seedMoney": 1650,
+      "goMoney": 225,
+      "maxTurns": 260
+    },
+    {
+      "t": 0,
+      "type": "end",
+      "winner": "YOURNAME"
+    }
+  ]
+}

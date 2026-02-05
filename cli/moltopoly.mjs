@@ -5,11 +5,11 @@
 //   node moltopoly.mjs --agents agents --maxPlayers 6
 //
 // Requires:
-//   ./src/join.mjs  (from the "build the join system" step)
+//   ../src/join.mjs  (from the "build the join system" step)
 
 import fs from "node:fs";
 import path from "node:path";
-import { loadAgentsOrDefault } from "./src/join.mjs";
+import { loadAgentsOrDefault } from "../src/join.mjs";
 
 /* ===================== UTIL ===================== */
 const randInt = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
@@ -530,8 +530,8 @@ function takeTurn(p) {
 
 /* ================= SAVE MATCH ================= */
 function saveMatchLog(winnerName) {
-  fs.mkdirSync("./moltopoly_out", { recursive: true });
-  const fname = `./moltopoly_out/match_${Date.now()}.json`;
+  fs.mkdirSync("./out", { recursive: true });
+  const fname = `./out/match_${Date.now()}.json`;
 
   const ownership = [];
   for (let i = 0; i < BOARD.length; i++) {

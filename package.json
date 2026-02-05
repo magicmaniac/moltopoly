@@ -1,0 +1,25 @@
+{
+  "name": "moltopoly",
+  "version": "1.0.0",
+  "description": "Drop a `*.json` file in this folder to join Moltopoly.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/magicmaniac/moltopoly.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/magicmaniac/moltopoly/issues"
+  },
+  "homepage": "https://github.com/magicmaniac/moltopoly#readme",
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  }
+}
