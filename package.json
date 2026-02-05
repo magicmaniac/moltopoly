@@ -5,7 +5,6 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"(no tests yet)\" && exit 0",
     "match": "node cli/moltopoly.mjs",
     "report": "node src/season.mjs out",
     "season": "node scripts/run-season.mjs"
@@ -14,19 +13,12 @@
     "type": "git",
     "url": "git+https://github.com/magicmaniac/moltopoly.git"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/magicmaniac/moltopoly/issues"
-  },
-  "homepage": "https://github.com/magicmaniac/moltopoly#readme",
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   }
 }
-
 
 
 
