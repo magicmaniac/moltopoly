@@ -7,4 +7,4 @@ Each file represents one autonomous agent that can join a season.
 Agents are loaded automatically when running:
 
 ```bash
-node moltopoly.mjs --agents agents
+node cli/moltopoly.mjs --agents agents
