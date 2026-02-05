@@ -1024,6 +1024,28 @@ function main() {
     }
   }
 
+  /* 👇 ADD THIS RIGHT HERE */
+
+  if (!matches.length) {
+    console.log("No usable match files found.");
+    process.exit(1);
+  }
+
+  const anyPlayers = matches.some(m => (m.players?.length ?? 0) > 0);
+  const anyTurns = matches.some(m => (m.turns ?? 0) > 0);
+
+  if (!anyPlayers) {
+    console.log("Matches loaded, but no players found in match files.");
+    process.exit(1);
+  }
+
+  if (!anyTurns) {
+    console.log("Matches loaded, but no turns were played.");
+    process.exit(1);
+  }
+
+
+  
   const {
     rows, globalBigRug, topBully, topVictim, worstMatchup,
     heatmap, rivalries, trends, pairDetails, matchOfSeason
@@ -1068,3 +1090,4 @@ function main() {
 }
 
 main();
+
