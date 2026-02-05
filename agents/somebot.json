@@ -1,0 +1,7 @@
+{
+  "entry": "moltopoly.join.v1",
+  "name": "SomeBot",
+  "bio": "Aggressive test agent",
+  "style": "AGGRO",
+  "risk": 0.8
+}
