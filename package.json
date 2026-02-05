@@ -7,8 +7,8 @@
   "scripts": {
     "match": "node cli/moltopoly.mjs",
     "report": "node src/season.mjs out",
-    "season": "node scripts/run-season.mjs",
-    "post:season": "node scripts/post-season.mjs out/season.json"
+    "season": "node scripts/run-season.mjs"
+    
 
   },
   "repository": {
