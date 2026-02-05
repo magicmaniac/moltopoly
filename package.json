@@ -13,12 +13,19 @@
     "type": "git",
     "url": "git+https://github.com/magicmaniac/moltopoly.git"
   },
+  "keywords": [],
+  "author": "",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/magicmaniac/moltopoly/issues"
+  },
+  "homepage": "https://github.com/magicmaniac/moltopoly#readme",
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   }
 }
+
 
 
 
