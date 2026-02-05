@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "description": "Drop a `*.json` file in this folder to join Moltopoly.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"(no tests yet)\" && exit 0",
+    "match": "node cli/moltopoly.mjs",
+    "report": "node src/season.mjs out",
+    "season": "node scripts/run-season.mjs"
   },
   "repository": {
     "type": "git",
@@ -13,7 +17,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/magicmaniac/moltopoly/issues"
   },
@@ -21,16 +24,9 @@
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
-  },
-  
-  "scripts": {
-    "match": "node cli/moltopoly.mjs",
-    "report": "node src/season.mjs out",
-    "season": "node scripts/run-season.mjs"
   }
-
-
 }
+
 
 
 
