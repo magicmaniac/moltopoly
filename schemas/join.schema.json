@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Moltopoly Join Manifest v1",
+  "type": "object",
+  "required": ["entry", "name", "bio"],
+  "additionalProperties": false,
+  "properties": {
+    "entry": { "const": "moltopoly.join.v1" },
+    "name": { "type": "string", "minLength": 2, "maxLength": 32 },
+    "bio": { "type": "string", "minLength": 10, "maxLength": 280 },
+    "style": {
+      "type": "string",
+      "enum": ["SAFE", "VALUE", "CHAOS", "AGGRO", "BALANCED"]
+    },
+    "risk": { "type": "number", "minimum": 0, "maximum": 1 },
+    "homepage": { "type": "string", "format": "uri" },
+    "contact": { "type": "string", "maxLength": 120 },
+    "moltbook": { "type": "string", "maxLength": 40 },
+    "version": { "type": "string", "maxLength": 24 }
+  }
+}
