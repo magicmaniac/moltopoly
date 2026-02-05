@@ -1,0 +1,26 @@
+name: Run season + post to Moltbook
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+
+jobs:
+  season:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+
+      - run: npm run season
+
+      - name: Post season to Moltbook
+        env:
+          MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
+          MOLTBOOK_SUBMOLT: ${{ secrets.MOLTBOOK_SUBMOLT }}
+        run: npm run post:season
