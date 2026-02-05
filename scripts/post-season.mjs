@@ -1,59 +1,59 @@
-import fs from "node:fs";
+// scripts/post-season.mjs
+import fs from "fs";
+import path from "path";
 
-const API = "https://www.moltbook.com/api/v1/posts";
-const key = process.env.MOLTBOOK_API_KEY; // moltbook_...
-const seasonPath = process.argv[2];
+const API_BASE = process.env.MOLTBOOK_API_BASE || "https://www.moltbook.com/api/v1";
+const API_KEY = process.env.MOLTBOOK_API_KEY;
 
-if (!seasonPath) {
-  console.error("Usage: node scripts/post-season.mjs out/season_0001.json");
+if (!API_KEY) {
+  console.error("Missing MOLTBOOK_API_KEY env var (must start with 'moltbook_').");
   process.exit(1);
 }
 
-const replay = JSON.parse(fs.readFileSync(seasonPath, "utf8"));
-
-function summarize(replay) {
-  const top = replay.standings?.slice(0, 3) ?? [];
-  const podium = top.map((x, i) => `${i + 1}) ${x.name} (${x.score ?? x.netWorth ?? "?"})`).join("\n");
-  return `🦞 MOLTOPOLY — Season Results
-
-Seed: ${replay.meta?.seed}
-Podium:
-${podium}
-
-Highlights:
-• turns: ${replay.turns?.length ?? 0}
-• roster: ${replay.roster?.length ?? 0}
-
-(Replay JSON attached locally: ${seasonPath})`;
+const seasonJsonPath = process.argv[2] || path.join("out", "season.json");
+if (!fs.existsSync(seasonJsonPath)) {
+  console.error(`Can't find ${seasonJsonPath}. Run: npm run season`);
+  process.exit(1);
 }
 
-const content = summarize(replay);
+const season = JSON.parse(fs.readFileSync(seasonJsonPath, "utf8"));
 
-const dry = !key;
-if (dry) {
-  console.log("DRY RUN (no MOLTBOOK_API_KEY set)\n");
-  console.log(content);
-  process.exit(0);
-}
+// Try to be resilient to schema changes:
+const matches = season.matches?.length ?? season.matchCount ?? season.totalMatches ?? "unknown";
+const winnerCounts = season.winners || season.winCounts || season.summary?.wins || {};
+const top = Object.entries(winnerCounts).sort((a,b)=> (b[1]||0)-(a[1]||0)).slice(0,5);
+
+const title = season.title || "Moltopoly — Season Report";
+const lines = [
+  `🦞 Moltopoly season complete.`,
+  `Matches: ${matches}`,
+  top.length ? `Top winners:` : `No winner summary found in season.json.`,
+  ...top.map(([name,w]) => `• ${name}: ${w}`),
+  ``,
+  `Repo: ${process.env.MOLTBOOK_REPO_URL || "(add MOLTBOOK_REPO_URL env var for a link)"}`,
+  `Report file: ${seasonJsonPath}`,
+];
 
 const body = {
-  submolt: "general",
-  title: "Moltopoly: Season Results",
-  content
+  // change submolt if you want
+  submolt: process.env.MOLTBOOK_SUBMOLT || "general",
+  title,
+  content: lines.join("\n"),
 };
 
-const res = await fetch(API, {
+const res = await fetch(`${API_BASE}/posts`, {
   method: "POST",
   headers: {
-    Authorization: `Bearer ${key}`,
-    "Content-Type": "application/json"
+    "Authorization": `Bearer ${API_KEY}`,
+    "Content-Type": "application/json",
   },
-  body: JSON.stringify(body)
+  body: JSON.stringify(body),
 });
 
-const json = await res.json();
+const txt = await res.text();
 if (!res.ok) {
-  console.error("Post failed:", res.status, json);
+  console.error(`Moltbook post failed: ${res.status}\n${txt}`);
   process.exit(1);
 }
-console.log("Posted:", json?.post?.id || json);
+
+console.log("✅ Posted season to Moltbook:", txt);
